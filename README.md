@@ -22,12 +22,34 @@ A mobile-friendly Arabic RTL workspace for planning and building software with a
 5. Push to `main` or run **Actions → Build and deploy Ai-kom → Run workflow**.
 6. The public site will be available at `https://irdreed95-bot.github.io/Ai-kom/` after the first successful deployment.
 
-## Important next integrations
+## Supabase setup and Edge Functions
 
-- GitHub App/OAuth backend for securely listing and changing multiple repositories.
-- Supabase Edge Functions or another trusted backend for model calls to GPT, Claude, Gemini, and a fourth provider.
-- Council orchestration: independent proposals → critique and consensus → user approval phrase → implementation.
-- Durable project memory and knowledge ingestion, with a 30-day inactivity window counted from the user's last message.
-- Automated tests, code review, and rollback-safe commits.
+Apply `supabase/migrations/202610250001_initial_schema.sql` only to a dedicated Ai-kom project.
 
-**No AI provider secret, GitHub OAuth secret, or Supabase service-role key belongs in Vite `VITE_*` variables.** Static GitHub Pages cannot securely run server-side AI orchestration by itself; use a trusted backend/Edge Functions for those operations.
+Deploy the functions from `supabase/functions/` to that project:
+- `council`: authenticated multi-provider planning discussion; it does not modify a repository.
+- `approve-plan`: records the user's explicit approval for the saved plan; it does not claim to implement code.
+- `expire-memory`: deletes project messages and knowledge-source records after 30 days without a user message, then archives the project while preserving its name and description.
+
+Configure these secrets in the Supabase Edge Function secret store (never in browser code):
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `GOOGLE_AI_API_KEY`
+- `OPENROUTER_API_KEY`
+- Supabase's standard `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` where applicable.
+- `MEMORY_CLEANUP_SECRET` for the protected cleanup function.
+
+The GitHub Actions workflow `.github/workflows/expire-memory.yml` calls the cleanup function daily. Add these repository Actions secrets for it:
+- `VITE_SUPABASE_URL` (the project URL; used here only as the endpoint)
+- `MEMORY_CLEANUP_SECRET` (must exactly match the Supabase function secret).
+
+The council UI can submit project messages after the Supabase project and functions are configured. Provider keys are intentionally not exposed in the browser. The approval endpoint is a planning gate, not a repository execution engine.
+
+## Remaining work before the platform is production-ready
+
+- GitHub App/OAuth integration for securely listing, reading, and changing multiple repositories.
+- A protected implementation pipeline that creates reviewable commits/branches only after approval.
+- File/repository ingestion, indexing, and tests for multi-project isolation, expiry, and approvals.
+- Live deployment verification after the dedicated Supabase project is created and configured.
+
+**Never place AI provider secrets, GitHub OAuth secrets, or the Supabase service-role key in Vite `VITE_*` variables.** Static GitHub Pages cannot securely run server-side AI orchestration by itself; server-side operations belong in Edge Functions or another trusted backend.

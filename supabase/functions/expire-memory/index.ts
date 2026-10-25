@@ -15,9 +15,12 @@ Deno.serve(async (req: Request) => {
   if (!url || !serviceKey) return json({ error: "Server configuration is incomplete." }, 503);
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const now = new Date().toISOString();
-  const { data: expired, error: listError } = await admin.from("projects")
-    .select("id,user_id,plan").lt("memory_expires_at", now).neq("status", "archived").limit(200);
+  const { data: candidates, error: listError } = await admin.from("projects")
+    .select("id,user_id,plan").lt("memory_expires_at", now).limit(200);
   if (listError) return json({ error: "Could not list expired project memory.", details: listError.message }, 500);
+  const expired = (candidates ?? []).filter((project) =>
+    !(project.plan && typeof project.plan === "object" && "memory_expired" in project.plan && project.plan.memory_expired === true)
+  );
 
   const results: { projectId: string; success: boolean; error?: string }[] = [];
   for (const project of expired ?? []) {

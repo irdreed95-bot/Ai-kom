@@ -32,10 +32,9 @@ Deno.serve(async (req: Request) => {
       results.push({ projectId: project.id, success: false, error: messages.error?.message ?? knowledge.error?.message });
       continue;
     }
-    const previousPlan = project.plan && typeof project.plan === "object" ? project.plan : {};
     const { error: updateError } = await admin.from("projects").update({
       status: "archived",
-      plan: { ...previousPlan, memory_expired: true, memory_expired_at: now, approval_required: false },
+      plan: { memory_expired: true, memory_expired_at: now, approval_required: false },
       updated_at: now,
     }).eq("id", project.id);
     results.push(updateError

@@ -65,13 +65,14 @@ function App() {
   }
 
   async function openProject(project: Project) {
-    if (!supabase || !userEmail || project.id.startsWith('demo-')) {
-      setNotice('حتى تفتح مجلساً محفوظاً، اربط Supabase وسجّل الدخول أولاً.');
-      return;
-    }
     setSelectedProject(project);
     setCouncilResult(null);
     setCouncilMessages([]);
+    setCouncilInput('');
+    if (!supabase || !userEmail || project.id.startsWith('demo-') || project.id.startsWith('local-')) {
+      setNotice('المحادثة فتحت. حتى يشتغل مجلس الذكاء الاصطناعي وتنحفظ المحادثة، سجّل الدخول أو أنشئ حساباً.');
+      return;
+    }
     const { data, error } = await supabase.from('project_messages')
       .select('id,role,agent_name,content,created_at')
       .eq('project_id', project.id).order('created_at', { ascending: true }).limit(100);
@@ -80,7 +81,12 @@ function App() {
   }
 
   async function sendToCouncil() {
-    if (!supabase || !selectedProject || !councilInput.trim()) return;
+    if (!selectedProject || !councilInput.trim()) return;
+    if (!supabase || !userEmail || selectedProject.id.startsWith('local-') || selectedProject.id.startsWith('demo-')) {
+      setNotice('حتى يرد عليك مجلس الذكاء الاصطناعي فعلياً، سجّل الدخول أو أنشئ حساباً من زر الحساب. محادثتك مفتوحة، لكن الردود تحتاج حساباً محفوظاً.');
+      setAuthOpen(true);
+      return;
+    }
     setCouncilLoading(true);
     setCouncilResult(null);
     const message = councilInput.trim();
@@ -127,10 +133,20 @@ function App() {
     if (supabase && userEmail) {
       const { data, error } = await supabase.from('projects').insert({ ...row, user_id: userId }).select('id,name,description,status,updated_at').single();
       if (error) { setNotice('لم يُحفظ المشروع: ' + error.message); return; }
-      setProjects(prev => [data as Project, ...prev]);
+      const created = data as Project;
+      setProjects(prev => [created, ...prev]);
+      setSelectedProject(created);
+      setCouncilMessages([]);
+      setCouncilResult(null);
+      setCouncilInput('');
     } else {
-      setProjects(prev => [{ ...row, id: crypto.randomUUID(), updated_at: new Date().toISOString() }, ...prev]);
-      setNotice('تم إنشاء مشروع تجريبي على هذا الجهاز. اربط Supabase لحفظه بحسابك ومزامنته.');
+      const created: Project = { ...row, id: 'local-' + crypto.randomUUID(), updated_at: new Date().toISOString() };
+      setProjects(prev => [created, ...prev]);
+      setSelectedProject(created);
+      setCouncilMessages([]);
+      setCouncilResult(null);
+      setCouncilInput('');
+      setNotice('انفتح مشروعك كمحادثة. سجّل الدخول حتى تقدر تشغّل المجلس وتحفظ المحادثة بشكل دائم.');
     }
     setProjectName(''); setProjectDescription(''); setProjectOpen(false);
   }

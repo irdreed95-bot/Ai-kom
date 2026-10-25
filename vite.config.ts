@@ -3,5 +3,6 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/Ai-kom/',
+  // Relative asset paths work on GitHub Pages subpaths and Cloudflare Pages root.
+  base: './',
 });

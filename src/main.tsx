@@ -120,8 +120,10 @@ function App() {
   }
 
   async function createProject() {
-    if (!projectName.trim()) return;
-    const row = { name: projectName.trim(), description: projectDescription.trim(), status: 'planning' };
+    const cleanName = projectName.trim();
+    if (!cleanName) { setNotice('اكتب اسم المشروع أولاً، وبعدها اضغط إنشاء المشروع.'); return; }
+    setNotice('');
+    const row = { name: cleanName, description: projectDescription.trim(), status: 'planning' };
     if (supabase && userEmail) {
       const { data, error } = await supabase.from('projects').insert({ ...row, user_id: userId }).select('id,name,description,status,updated_at').single();
       if (error) { setNotice('لم يُحفظ المشروع: ' + error.message); return; }

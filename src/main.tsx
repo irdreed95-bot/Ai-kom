@@ -16,6 +16,7 @@ const seedProjects: Project[] = [
 function App() {
   const [projects, setProjects] = useState<Project[]>(seedProjects);
   const [userEmail, setUserEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authOpen, setAuthOpen] = useState(false);
@@ -28,8 +29,8 @@ function App() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => setUserEmail(data.session?.user.email ?? ''));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUserEmail(session?.user.email ?? ''));
+    supabase.auth.getSession().then(({ data }) => { setUserEmail(data.session?.user.email ?? ''); setUserId(data.session?.user.id ?? ''); });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { setUserEmail(session?.user.email ?? ''); setUserId(session?.user.id ?? ''); });
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -60,7 +61,7 @@ function App() {
     if (!projectName.trim()) return;
     const row = { name: projectName.trim(), description: projectDescription.trim(), status: 'planning' };
     if (supabase && userEmail) {
-      const { data, error } = await supabase.from('projects').insert(row).select('id,name,description,status,updated_at').single();
+      const { data, error } = await supabase.from('projects').insert({ ...row, user_id: userId }).select('id,name,description,status,updated_at').single();
       if (error) { setNotice('لم يُحفظ المشروع: ' + error.message); return; }
       setProjects(prev => [data as Project, ...prev]);
     } else {
